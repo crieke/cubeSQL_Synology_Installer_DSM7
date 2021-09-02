@@ -1,0 +1,204 @@
+#!/bin/sh
+
+# Package
+PACKAGE="cubeSQL"
+PKG_ROOT="/var/packages/${PACKAGE}"
+PKG_ETC="${PKG_ROOT}/etc"
+PKG_TARGET="${PKG_ROOT}/target"
+CUBESQL_STORAGE="$(get_section_key_value $PKG_ETC/cubeSQL.ini General cubesql_storage)"
+DATAROOT=`${PKG_ROOT}/scripts/getsharelocation ${CUBESQL_STORAGE}`	
+DATAROOT_DIR="${DATAROOT}/cubeSQL"	
+LOG_FILE="${DATAROOT_DIR}/cubesql.log"
+PIDFILE="${DATAROOT_DIR}/data/cubesql.pid" # PID is written by cubesql application
+ARCH=`( uname -m )`
+SYNO_MODEL=$(cat /proc/sys/kernel/syno_hw_version)
+SYNO_VERSION=`cat /etc/VERSION | grep productversion | cut -d '"' -f2 | cut -d '"' -f1`
+SYNO_SMALL_FIX=`cat /etc/VERSION | grep smallfixnumber | cut -d '"' -f2 | cut -d '"' -f1`
+SYNO_SPK_VER=`cat /var/packages/${PACKAGE}/INFO | grep "version=" | cut -d "\"" -f 2`
+DEBUG_EXTERNAL_LOG="${DATAROOT_DIR}/CUBESQL_DEBUG_EXTERNAL_LOG.txt"
+
+if [[ -f $DEBUG_EXTERNAL_LOG ]]; then
+    LOG_FILE=$DEBUG_EXTERNAL_LOG
+fi
+
+ST_COLOR="\033[38;5;34m"
+HL_COLOR="\033[38;5;197m"
+REG_COLOR="\033[0m"
+
+if [ -f ${PIDFILE} ]; then
+    PID=`cat "${PIDFILE}"`
+fi
+
+if [ "${ARCH}" == "x86_64" ]; then
+  CPU="64bit";
+elif [ "${ARCH}" == "i686" ]; then
+  CPU="32bit";
+elif [ "${ARCH}" == "i386" ]; then
+  CPU="32bit";
+else
+  CPU="unsupported"
+fi
+
+## Log Function
+echolog(){
+    TIMESTAMP=$(date +%d.%m.%y-%H:%M:%S)
+    if [[ $# == 2 ]]; then
+        PARAMETER1=$1
+        PARAMETER2=$2
+        echo -e "${ST_COLOR}${TIMESTAMP}${REG_COLOR} --- ${HL_COLOR}${PARAMETER1}:${REG_COLOR} ${PARAMETER2}"
+        echo "${TIMESTAMP} --- ${PARAMETER1}: ${PARAMETER2}" >> $LOG_FILE
+    elif [[ $# == 1 ]]; then
+        PARAMETER1=$1
+        echo -e "${ST_COLOR}${TIMESTAMP}${REG_COLOR} --- ${PARAMETER1}"
+        echo "${TIMESTAMP} --- ${PARAMETER1}" >> $LOG_FILE
+    else
+        echo -e "The echolog function requires 1 or 2 parameters."
+    fi
+}
+
+if [[ $SYNO_SMALL_FIX -gt 0 ]]; then
+   SYNO_SMALL_FIX="(Update ${SYNO_SMALL_FIX})"
+else
+   SYNO_SMALL_FIX="";
+fi
+
+info ()
+{
+   ## Echoing System Info
+    echolog "DATAROOT_DIR" "${DATAROOT_DIR}"
+    echolog "PACKAGE_DIR" "${PKG_TARGET}"
+  echolog "Model" "${SYNO_MODEL}"
+    echolog "Architecture" "${ARCH}"
+    echolog "DSM Version" "${SYNO_VERSION} ${SYNO_SMALL_FIX}"
+    echolog "PKG Version" "${SYNO_SPK_VER}"
+    echolog "Hostname" "${HOSTNAME}"
+}
+
+findExecutable ()
+{
+  execPaths=(\
+    "${PKG_TARGET}/cubeSQL/data/cubesql" \
+    "${PKG_TARGET}/cubeSQL/data/core/Linux/cubesql" \
+    "${PKG_TARGET}/cubeSQL/data/core/Linux/$CPU/cubesql" \
+    "${PKG_TARGET}/cubeSQL/data/cubesql/cubesql" \
+    "${PKG_TARGET}/cubeSQL/cubesql/Linux/$CPU/cubesql" \
+    "${PKG_TARGET}/cubeSQL/core/Linux/$CPU/cubesql" \
+    "${PKG_TARGET}/cubeSQL/Server/Linux/$CPU/cubesql" \
+  )
+  
+  for execPath in ${!execPaths[*]}
+  do
+    [ -f "${execPaths[$execPath]}" ] && [ -x "${execPaths[$execPath]}" ] && cubeExec="${execPaths[$execPath]}" && break
+  done
+}
+
+start_daemon ()
+{
+  info
+    if [ "${DATAROOT_DIR}" != "" ]; then
+
+      if [ ! -d "${DATAROOT_DIR}"/settings ]; then
+        mkdir "${DATAROOT_DIR}"/settings
+        echolog "Settings folder has been created." 
+      else
+        echolog "Settings folder exists."
+      fi
+      findExecutable
+      echolog "Executable" "${cubeExec}"
+      "${cubeExec}" -x "${DATAROOT_DIR}"/data -s "${DATAROOT_DIR}/settings/cubesql.settings" | tee -a ${LOG_FILE} &
+    fi
+}
+
+stop_daemon ()
+{
+   if [ -r "$PIDFILE" ]; then
+   PID=$(cat "$PIDFILE")
+      
+   kill -TERM "$PID" >> /dev/null 2>&1
+   wait_for_status 1 || kill -KILL "$PID" >> /dev/null 2>&1
+      
+   [ -f "$PIDFILE" ] && rm -f "$PIDFILE" >> /dev/null 2>&1
+   fi
+      
+   return 0
+      
+   Pids="$(ps -ef | grep cubesql | awk '{print $2}')"
+      
+   Count=10
+   Sig=-9
+      
+   while [ "$Pids" != "" ] && [ $Count -gt 0 ]
+      do
+         kill $Sig $Pids
+         sleep 5
+      
+         Pids="$(ps -ef | grep cubesql | awk '{print $2}')"
+         Count=$(($Count -1))
+      
+         if [ $Count -eq 1 ]; then
+            Sig=-11
+         fi
+      done
+   return 0
+}
+
+
+pkg_state ()
+{
+  # If no PID file, it's stopped (1)
+  [ ! -f "$PIDFILE" ] && return 1
+
+  # Return true (0) if PID file exists
+  [ -d /proc/`cat "$PIDFILE"` ] && return 0
+
+  # The PID file is pointing off to something bad. (implied stopped state)
+  return 1
+}
+
+wait_for_status ()
+{
+  counter=20 # 20 seconds
+  while [ ${counter} -gt 0 ]; do
+    pkg_state
+    [ $? -eq "$1" ] && return
+    counter=$((counter-1))
+    sleep 1
+  done
+  return 1
+}
+
+case $1 in
+    start)
+        if pkg_state; then
+            echo "${PACKAGE} is already running"
+            exit 0
+        else
+            echo "" > ${LOG_FILE}
+            echo "Starting ${PACKAGE} ..."
+            start_daemon
+            exit 0
+        fi
+        ;;
+    stop)
+        if pkg_state; then
+            echo "Stopping ${PACKAGE} ..."
+            stop_daemon
+            exit 0
+        else
+            echo "${PACKAGE} is not running"
+            exit 0
+        fi
+        ;;
+    status)
+        if pkg_state; then
+            echo "${PACKAGE} is running"
+            exit 0
+        else
+            echo "${PACKAGE} is not running"
+            exit 3
+        fi
+        ;;
+    *)
+        exit 1
+        ;;
+esac

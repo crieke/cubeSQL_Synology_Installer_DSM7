@@ -1,0 +1,111 @@
+#!/bin/sh
+
+# Package
+PACKAGE="cubeSQL"
+# Others
+SSS="/var/packages/${PACKAGE}/scripts/start-stop-status"
+PKG_DIR="/var/packages/${PACKAGE}"
+PKG_TARGET="${PKG_DIR}/target"
+PKG_URL="${WIZARD_DL_URL}"
+PKG_ARCHIVE="${PKG_URL##*/}"
+ScriptDir="$(dirname "$0")"
+
+preinst ()
+{
+  if [ "${SYNOPKG_PKG_STATUS}" != "UPGRADE" ]; then 
+  
+  # Create tmp dir to extract cubeSQL archive and enter dir
+    TMP_DIR=`( mktemp -d /tmp/cube.XXXXXXXXXX)`
+    pushd "${TMP_DIR}" > /dev/null
+  
+  # Download cubeSQL archive  
+    curl -s -O "${PKG_URL}"
+    R=$?
+  
+  # Proceed if download succeeded. Extract to tmp dir, move extracted files to target dir  
+    if [ $R -eq 0 ]; then
+      mkdir "${SYNOPKG_PKGINST_TEMP_DIR}"/"${PACKAGE}"
+      tar -zxvf "${PKG_ARCHIVE}" -C "${TMP_DIR}" > /dev/null
+      R=$?
+      rm -f "${TMP_DIR}/${PKG_ARCHIVE}"
+      mv ${TMP_DIR}/*/* "${SYNOPKG_PKGINST_TEMP_DIR}/${PACKAGE}"
+      rm -Rf "${TMP_DIR}"
+      rm -f "${PKG_ARCHIVE}"
+      if [ $R -ne 0 ]; then
+        MESSAGE="Extracting cubeSQL files from archive failed."
+      fi
+    else
+      rm -f "${PKG_ARCHIVE}"
+      MESSAGE="The download of the specified cubeSQL version failed. Please check your internet connection."
+    fi
+    
+    popd > /dev/null
+  
+    if [ $R -ne 0 ]; then
+      echo "$MESSAGE"
+    fi
+  fi
+  return $R
+}
+
+postinst ()
+{
+  # This is a placeholder file that has been extracted from the required package.tgz archive.
+  rm "${PKG_TARGET}"/DUMMY 
+
+if [ "${SYNOPKG_PKG_STATUS}" != "UPGRADE" ]; then
+  
+  echo "[General]" > "${PKG_DIR}/etc/cubeSQL.ini"
+  echo "cubesql_storage=$WIZARD_DATABASE_DIR" >> "${PKG_DIR}/etc/cubeSQL.ini"
+  STORAGE_PATH=$($ScriptDir/getsharelocation "${WIZARD_DATABASE_DIR}")
+  [ ! -d "$STORAGE_PATH/cubeSQL" ] && mkdir "$STORAGE_PATH/cubeSQL" && NEWINSTALL=true || NEWINSTALL=false
+
+  if $WIZARD_MIGRATE_DB && $NEWINSTALL; then
+    #Check if databases directory exists in DSM6 styled database path
+    DSM6_STORAGE_PATH=$($ScriptDir/getsharelocation cubeSQL)
+
+    ## Need to copy old cubeSQL files to new specified directory to fix ownership
+    [ -d "${DSM6_STORAGE_PATH}/databases" ]  && cp -R "${DSM6_STORAGE_PATH}/databases" "${STORAGE_PATH}/cubeSQL/data"
+    [ -d "${DSM6_STORAGE_PATH}/settings" ] && cp -R "${DSM6_STORAGE_PATH}/settings" "${STORAGE_PATH}/cubeSQL/settings"
+  fi 
+
+
+
+fi
+
+
+  return 0
+}
+
+preuninst ()
+{
+    # Stop the package
+    ${SSS} stop > /dev/null
+    
+    exit 0
+    
+}
+
+postuninst ()
+{
+    # Delete Package directory if it contains nothing.
+    if [ ! -d "$(ls -A /usr/syno/etc/packages/${PACKAGE})" ]; then
+        rm -Rf /usr/syno/etc/packages/${PACKAGE}
+    fi
+
+    exit 0
+}
+
+preupgrade ()
+{
+  ## Move cubeSQL executable files to temp dir.
+  if [ -d "${SYNOPKG_PKGDEST}/cubeSQL" ]; then
+    mv ${SYNOPKG_PKGDEST}/cubeSQL ${SYNOPKG_PKGINST_TEMP_DIR}/cubeSQL
+  fi
+  exit 0
+}
+
+postupgrade ()
+{
+    exit 0
+}

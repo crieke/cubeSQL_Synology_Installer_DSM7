@@ -1,0 +1,13 @@
+{
+   "data-share": {
+      "shares": [{
+         "name": "{{WIZARD_DATABASE_DIR}}", 
+         "permission": {
+            "rw": ["cubeSQL"]
+         }
+      }]
+   },
+   "port-config": {
+      "protocol-file": "etc/cubeSQL.sc"
+   }
+}

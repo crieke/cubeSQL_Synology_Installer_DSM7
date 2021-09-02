@@ -1,0 +1,63 @@
+#!/bin/bash
+# Copyright (C) 2000-2020 Synology Inc. All rights reserved.
+
+### Use PKG_DIR as working directory.
+PKG_DIR=/tmp/_test_spk
+rm -rf $PKG_DIR
+mkdir -p $PKG_DIR
+
+### get spk packing functions
+source /pkgscripts/include/pkg_util.sh
+
+create_package_tgz() {
+	local firewere_version=
+	local package_tgz_dir=/tmp/_package_tgz
+#	local binary_dir=$package_tgz_dir/usr/local/bin
+#	local lib_dir=$package_tgz_dir/usr/local/lib
+	local etc_dir=$package_tgz_dir/etc
+#	local sbin_dir=$package_tgz_dir/sbin
+	
+	### clear destination directory
+	rm -rf $package_tgz_dir && mkdir -p $package_tgz_dir
+
+	### install needed file into PKG_DIR
+#	mkdir -p $binary_dir
+#	mkdir -p $lib_dir
+	mkdir -p $etc_dir
+	mkdir -p $sbin_dir
+#	make install DESTDIR="$package_tgz_dir"
+#	cp -av "usr/local/lib/libasound.so.2.0.0" "$lib_dir/libasound.so.2"
+	cp -avr etc/* $etc_dir/
+#	cp -avr "usr/local/etc/alsa" "$etc_dir"
+
+	### create package.tgz $1: source_dir $2: dest_dir
+	pkg_make_package $package_tgz_dir "${PKG_DIR}"
+}
+
+create_spk(){
+
+	cp -av scripts $PKG_DIR/scripts
+	cp -av PACKAGE_ICON*.PNG $PKG_DIR
+	cp -av WIZARD_UIFILES $PKG_DIR
+	find $PKG_DIR/WIZARD_UIFILES/ -type f -name '*.json' | while read f; do echo "Move $f to ${f%.*}."; mv "$f" "${f%.*}"; done
+	echo "Move "
+	cp -av conf $PKG_DIR
+	cp -av LICENSE $PKG_DIR
+
+	./INFO.sh > INFO
+	cp INFO $PKG_DIR/INFO
+
+	### Create the final spk.
+	# pkg_make_spk <source path> <dest path> <spk file name>
+	# Please put the result spk into /image/packages
+	# spk name functions: pkg_get_spk_name pkg_get_spk_unified_name pkg_get_spk_family_name
+	mkdir -p /image/packages
+	pkg_make_spk ${PKG_DIR} "/image/packages" $(pkg_get_spk_family_name)
+}
+
+main() {
+	create_package_tgz
+	create_spk
+}
+
+main "$@"
