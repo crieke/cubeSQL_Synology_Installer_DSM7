@@ -1,4 +1,4 @@
-# Synology Example Package.
+# cubeSQL for Synology DSM7.
 
 This package is depend on Synology toolkit framework.
 This package is a template package, users can modify this package to generate their own packages.
@@ -11,8 +11,7 @@ After setup toolkit environment, you can create package by command:
 pkgscripts-ng/PkgCreate.py [-p {platforms}] -c -v 7.0 ExamplePkg
 ```
 ```bash
-pkgscripts-ng/PkgCreate.py -p avoton -c -v 7.0 ExamplePkg
-pkgscripts-ng/PkgCreate.py -c -v 7.0 ExamplePkg # will generate package for all platforms in build_env
+pkgscripts-ng/PkgCreate.py -p braswell -c -v 7.0 cubeSQL
 ```
 
 You can find generated packages in result_spk directory.
