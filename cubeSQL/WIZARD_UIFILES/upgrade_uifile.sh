@@ -2,6 +2,17 @@
 
 currentDir="$(dirname "$0")"
 preVerPath="$(${currentDir}/../scripts/getsharelocation cubeSQL)"
+ARCH=$(uname -m)
+
+if [ "${ARCH}" == "x86_64" ]; then
+  CPU="64bit";
+elif [ "${ARCH}" == "i686" ]; then
+  CPU="32bit";
+elif [ "${ARCH}" == "i386" ]; then
+  CPU="32bit";
+else
+  CPU="unsupported"
+fi
 /bin/cat > /tmp/wizard.php <<EOF
 <?php
 \$STEP1 = array(
