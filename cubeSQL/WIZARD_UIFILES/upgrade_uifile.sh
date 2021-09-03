@@ -58,19 +58,27 @@ preVerPath="$(${currentDir}/../scripts/getsharelocation cubeSQL)"
     "step_title" => "Migrate your DSM6 cubeSQL data?",
     "items" => [array(
         "type" => "multiselect",
-        "desc" => "On previous DSM6 installs, cubeSQL had a fixed data folder for its databases and backups. cubeSQL was also running as root user, which is not allowed in DSM7. When you choose to migrate your DSM6 data, your DSM6 cubeSQL data will be copied into a new 'cubeSQL' folder on your specified data storage.<br>This will only work, if your specified shared folder does not already have a folder called 'cubeSQL'.",
+        "desc" => "The installation has detected a shared folder 'cubeSQL' on your diskstation. This was the default storage path for cubeSQL on DSM6 systems. If you migrate from DSM6 -> DSM7, you can tick the checkbox below, to migrate the data from your previous cubeSQL environment.<br><br><strong>Info:</strong> This migration is only supported, if you have selected 'cubeSQL' as your storage location in the previous step.",
         "subitems" => [array(
             "key" => "WIZARD_MIGRATE_DB",
             "desc" => "Migrate data from cubeSQL (DSM6)"
         )]
     )]
 );
-\$WIZARD[] = "";
+\$WIZARD = [];
+
+# Check if cubeSQL.ini exists. Then a storage location is already been set.
 if ( !file_exists("/var/packages/cubeSQL/etc/cubeSQL.ini") ) {
     # Storage location already set.
     array_push(\$WIZARD, \$STEP1);
 }
-if ( is_dir("$preVerPath/databases") && is_dir("$preVerPath/settings")) {
+
+# Check if Migration step for DSM6 should be shown. This should only appear, if 
+#   - no cubeSQL.ini file has been found
+#   - cubeSQL shared folder has been identified
+#   - no additional cubeSQL folder (introduced in DSM7 install) is available or it can't be accessed due to privileges.
+
+if ( !file_exists("/var/packages/cubeSQL/etc/cubeSQL.ini") && is_dir("$preVerPath") && !is_dir("$preVerPath/cubeSQL")) {
     # Previous DSM6 data structure identified. Append Migration Step
     array_push(\$WIZARD, \$STEP2);
 }
