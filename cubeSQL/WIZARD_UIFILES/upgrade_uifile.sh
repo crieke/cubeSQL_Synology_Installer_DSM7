@@ -1,5 +1,5 @@
 #!/bin/bash
-whoami > /tmp/wai.txt
+
 currentDir="$(dirname "$0")"
 preVerPath="$(${currentDir}/../scripts/getsharelocation cubeSQL)"
 /bin/cat > /tmp/wizard.php <<EOF
@@ -54,7 +54,68 @@ preVerPath="$(${currentDir}/../scripts/getsharelocation cubeSQL)"
         )]
     )]
 );
-\$STEP2 = array(
+\$STEP2 = array(    
+    "step_title" => "Keep current cubeSQL version?",
+    "items" => [array(
+        "type" => "combobox",
+        "desc" => "You can either keep your installed version or change to a different cubeSQL version.",
+        "invalid_next_disabled_v2" => true,
+        "subitems" => [array(
+            "key" => "WIZARD_DL_URL",
+            "desc" => "Version",
+            "displayField" => "displayText",
+            "defaultValue" => "Please select",
+            "valueField" => "url",
+            "autoSelect" => FALSE,
+            "mode" => "local",
+            "store" => array(
+                "xtype" => "arraystore",
+                "fields" => ["displayText", "url"],
+                "data" => [
+                    ["Keep current Version", "KEEP"], 
+                    ["Latest", "https://sqlabs.com/download/cubesql/latest/cubesql_linux$CPU.tar.gz"], 
+                    ["5.8.0", "https://sqlabs.com/download/cubesql/580/cubesql_linux$CPU.tar.gz"], 
+                    ["5.7.2", "https://sqlabs.com/download/cubesql/572/cubesql_linux$CPU.tar.gz"], 
+                    ["5.7.0", "https://sqlabs.com/download/cubesql/570/cubesql_linux$CPU.tar.gz"], 
+                    ["5.6.1", "https://sqlabs.com/download/cubesql/561/cubesql_linux$CPU.tgz"], 
+                    ["5.5.0", "https://sqlabs.com/download/cubesql/550/cubesql_linux$CPU.tgz"], 
+                    ["5.0.4", "https://sqlabs.com/download/cubesql/504/cubesql_linux$CPU.tgz"], 
+                    ["5.0.1", "https://sqlabs.com/download/cubesql/501/cubesql_linux.tgz"], 
+                    ["4.5.0", "https://sqlabs.com/download/cubesql/450/cubesql_linux_$CPU.tgz"], 
+                    ["4.3.0", "https://sqlabs.com/download/cubesql/430/cubesql_linux_$CPU.tgz"], 
+                    ["4.2.0", "https://sqlabs.com/download/cubesql/420/cubesql_linux_$CPU.tgz"], 
+                    ["4.1.0", "https://sqlabs.com/download/cubesql/410/cubesql_linux_$CPU.tgz"], 
+                    ["4.0.0", "https://sqlabs.com/download/cubesql/400/cubesql_linux_$CPU.tgz"]
+                ]
+            ),
+            "validator" => array(
+                "fn" => "{var cubesqlver=arguments[0]; var d=cubesqlver != \"Please select\"; if (!d) return 'Please a cubeSQL version to install.';return true;}"    
+            ),
+            "forceSelection" => TRUE,
+            "editable" => FALSE
+        ),array(
+            "key" => "WIZARD_HIDDEN_FIELD",
+            "desc" => "This is a placeholder field. It is a workaround, as it seems the last combobox in the PKG-WIZARD always gets filled with the first entry.",
+            "displayField" => "name",
+            "defaultValue" => "Nothing to select here.",
+            "valueField" => "name",
+            "autoSelect" => false,
+            "forceSelection" => true,
+            "title" => "PLACEHOLDER",
+            "editable" => false,
+            "hidden" => true,
+            "api_store" => array(
+                "api" => "SYNO.FileStation.List",
+                "method" => "list_share",
+                "version" => 2,
+                "root" => "shares",
+                "idProperty" => "name",
+                "fields" => ["name"]
+            )
+        )]
+    )]
+);
+\$STEP3 = array(
     "step_title" => "Migrate your DSM6 cubeSQL data?",
     "items" => [array(
         "type" => "multiselect",
@@ -73,6 +134,9 @@ if ( !file_exists("/var/packages/cubeSQL/etc/cubeSQL.ini") ) {
     array_push(\$WIZARD, \$STEP1);
 }
 
+# Ask for different cubeSQL version
+array_push(\$WIZARD, \$STEP2);
+
 # Check if Migration step for DSM6 should be shown. This should only appear, if 
 #   - no cubeSQL.ini file has been found
 #   - cubeSQL shared folder has been identified
@@ -80,7 +144,7 @@ if ( !file_exists("/var/packages/cubeSQL/etc/cubeSQL.ini") ) {
 
 if ( !file_exists("/var/packages/cubeSQL/etc/cubeSQL.ini") && is_dir("$preVerPath") && !is_dir("$preVerPath/cubeSQL")) {
     # Previous DSM6 data structure identified. Append Migration Step
-    array_push(\$WIZARD, \$STEP2);
+    array_push(\$WIZARD, \$STEP3);
 }
 
 echo json_encode(\$WIZARD);

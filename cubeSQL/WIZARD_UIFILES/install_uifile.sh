@@ -1,4 +1,5 @@
 #!/bin/bash
+
 currentDir="$(dirname "$0")"
 preVerPath="$(${currentDir}/../scripts/getsharelocation cubeSQL)"
 ARCH=$(uname -m)

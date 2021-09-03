@@ -10,40 +10,44 @@ PKG_URL="${WIZARD_DL_URL}"
 PKG_ARCHIVE="${PKG_URL##*/}"
 ScriptDir="$(dirname "$0")"
 
+download_cubeSQL ()
+{
+  # Create tmp dir to extract cubeSQL archive and enter dir
+  TMP_DIR=`( mktemp -d /tmp/cube.XXXXXXXXXX)`
+  pushd "${TMP_DIR}" > /dev/null
+
+# Download cubeSQL archive  
+  curl -s -O "${PKG_URL}"  # Need implement status code check
+  R=$?
+
+# Proceed if download succeeded. Extract to tmp dir, move extracted files to target dir  
+  if [ $R -eq 0 ]; then
+    mkdir "${SYNOPKG_PKGINST_TEMP_DIR}"/"${PACKAGE}"
+    tar -zxvf "${PKG_ARCHIVE}" -C "${TMP_DIR}" > /dev/null
+    R=$?
+    rm -f "${TMP_DIR}/${PKG_ARCHIVE}"
+    mv ${TMP_DIR}/*/* "${SYNOPKG_PKGINST_TEMP_DIR}/${PACKAGE}"
+    rm -Rf "${TMP_DIR}"
+    rm -f "${PKG_ARCHIVE}"
+    if [ $R -ne 0 ]; then
+      MESSAGE="Extracting cubeSQL files from archive failed."
+    fi
+  else
+    rm -f "${PKG_ARCHIVE}"
+    MESSAGE="The download of the specified cubeSQL version failed. Please check your internet connection."
+  fi
+  
+  popd > /dev/null
+
+  if [ $R -ne 0 ]; then
+    echo "$MESSAGE"
+  fi
+}
+
 preinst ()
 {
   if [ "${SYNOPKG_PKG_STATUS}" != "UPGRADE" ]; then 
-  
-  # Create tmp dir to extract cubeSQL archive and enter dir
-    TMP_DIR=`( mktemp -d /tmp/cube.XXXXXXXXXX)`
-    pushd "${TMP_DIR}" > /dev/null
-  
-  # Download cubeSQL archive  
-    curl -s -O "${PKG_URL}"
-    R=$?
-  
-  # Proceed if download succeeded. Extract to tmp dir, move extracted files to target dir  
-    if [ $R -eq 0 ]; then
-      mkdir "${SYNOPKG_PKGINST_TEMP_DIR}"/"${PACKAGE}"
-      tar -zxvf "${PKG_ARCHIVE}" -C "${TMP_DIR}" > /dev/null
-      R=$?
-      rm -f "${TMP_DIR}/${PKG_ARCHIVE}"
-      mv ${TMP_DIR}/*/* "${SYNOPKG_PKGINST_TEMP_DIR}/${PACKAGE}"
-      rm -Rf "${TMP_DIR}"
-      rm -f "${PKG_ARCHIVE}"
-      if [ $R -ne 0 ]; then
-        MESSAGE="Extracting cubeSQL files from archive failed."
-      fi
-    else
-      rm -f "${PKG_ARCHIVE}"
-      MESSAGE="The download of the specified cubeSQL version failed. Please check your internet connection."
-    fi
-    
-    popd > /dev/null
-  
-    if [ $R -ne 0 ]; then
-      echo "$MESSAGE"
-    fi
+    download_cubeSQL
   fi
   return $R
 }
@@ -51,7 +55,7 @@ preinst ()
 postinst ()
 {
   # Wizard will ask for cubeSQL share if cubeSQL share does not exist 
-  if [! -f ${PKG_DIR}/etc/cubeSQL.ini ]; then
+  if [ ! -f ${PKG_DIR}/etc/cubeSQL.ini ]; then
     echo "[General]" > "${PKG_DIR}/etc/cubeSQL.ini"
     echo "cubesql_storage=$WIZARD_DATABASE_DIR" >> "${PKG_DIR}/etc/cubeSQL.ini"
   fi
@@ -90,12 +94,6 @@ postuninst ()
     if [ ! -d "$(ls -A /usr/syno/etc/packages/${PACKAGE})" ]; then
         rm -Rf /usr/syno/etc/packages/${PACKAGE}
     fi
-    
-    # Wizard will ask for cubeSQL share if cubeSQL share does not exist 
-    if [! -f ${PKG_DIR}/etc/cubeSQL.ini ]; then
-      echo "[General]" > "${PKG_DIR}/etc/cubeSQL.ini"
-      echo "cubesql_storage=$WIZARD_DATABASE_DIR" >> "${PKG_DIR}/etc/cubeSQL.ini"
-    fi
 
     exit 0
 }
@@ -103,15 +101,18 @@ postuninst ()
 preupgrade ()
 {
   ## Move cubeSQL executable files to temp dir.
-  if [ -d "${SYNOPKG_PKGDEST}/cubeSQL" ]; then
+  if [ -d "${SYNOPKG_PKGDEST}/cubeSQL" ] && [ "${PKG_URL}" == "KEEP" ]; then
     mv ${SYNOPKG_PKGDEST}/cubeSQL ${SYNOPKG_PKGINST_TEMP_DIR}/cubeSQL
+    R=$?
+  else
+    download_cubeSQL
   fi
-  exit 0
+  return $R
 }
 
 postupgrade ()
 {
-  # Wizard will ask for cubeSQL share if cubeSQL share does not exist 
+  # Wizard will only ask for cubeSQL share if cubeSQL share does not exist 
   if [ ! -f ${PKG_DIR}/etc/cubeSQL.ini ]; then
     echo "[General]" > "${PKG_DIR}/etc/cubeSQL.ini"
     echo "cubesql_storage=$WIZARD_DATABASE_DIR" >> "${PKG_DIR}/etc/cubeSQL.ini"
