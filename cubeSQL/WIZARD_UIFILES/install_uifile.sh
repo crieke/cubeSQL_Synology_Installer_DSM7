@@ -139,7 +139,7 @@ fi
         )]
     )]
 );
-\$WIZARD[] = "";
+\$WIZARD = [];
 if ( !file_exists("/var/packages/cubeSQL/etc/cubeSQL.ini") ) {
     # Storage location already set.
     array_push(\$WIZARD, \$STEP1);
