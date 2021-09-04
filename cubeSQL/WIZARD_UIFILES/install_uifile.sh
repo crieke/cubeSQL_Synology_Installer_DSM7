@@ -1,8 +1,9 @@
 #!/bin/bash
-
 currentDir="$(dirname "$0")"
 preVerPath="$(${currentDir}/../scripts/getsharelocation cubeSQL)"
+JSON_URL="https://cubesql.rie.ke/cubesql_urls.json"
 ARCH=$(uname -m)
+DOWNLOAD_LINKS=$(curl -s "$JSON_URL" | jq -c --arg v "$ARCH" '.[$v]')
 
 if [ "${ARCH}" == "x86_64" ]; then
   CPU="64bit";
@@ -13,8 +14,6 @@ elif [ "${ARCH}" == "i386" ]; then
 else
   CPU="unsupported"
 fi
-
-
 /bin/cat > /tmp/wizard.php <<EOF
 <?php
 \$preVerPath = "$preVerPath";
@@ -86,21 +85,7 @@ fi
             "store" => array(
                 "xtype" => "arraystore",
                 "fields" => ["displayText", "url"],
-                "data" => [
-                    ["Latest", "https://sqlabs.com/download/cubesql/latest/cubesql_linux$CPU.tar.gz"], 
-                    ["5.8.0", "https://sqlabs.com/download/cubesql/580/cubesql_linux$CPU.tar.gz"], 
-                    ["5.7.2", "https://sqlabs.com/download/cubesql/572/cubesql_linux$CPU.tar.gz"], 
-                    ["5.7.0", "https://sqlabs.com/download/cubesql/570/cubesql_linux$CPU.tar.gz"], 
-                    ["5.6.1", "https://sqlabs.com/download/cubesql/561/cubesql_linux$CPU.tgz"], 
-                    ["5.5.0", "https://sqlabs.com/download/cubesql/550/cubesql_linux$CPU.tgz"], 
-                    ["5.0.4", "https://sqlabs.com/download/cubesql/504/cubesql_linux$CPU.tgz"], 
-                    ["5.0.1", "https://sqlabs.com/download/cubesql/501/cubesql_linux.tgz"], 
-                    ["4.5.0", "https://sqlabs.com/download/cubesql/450/cubesql_linux_$CPU.tgz"], 
-                    ["4.3.0", "https://sqlabs.com/download/cubesql/430/cubesql_linux_$CPU.tgz"], 
-                    ["4.2.0", "https://sqlabs.com/download/cubesql/420/cubesql_linux_$CPU.tgz"], 
-                    ["4.1.0", "https://sqlabs.com/download/cubesql/410/cubesql_linux_$CPU.tgz"], 
-                    ["4.0.0", "https://sqlabs.com/download/cubesql/400/cubesql_linux_$CPU.tgz"]
-                ]
+                "data" => json_decode('$DOWNLOAD_LINKS', true)
             ),
             "validator" => array(
                 "fn" => "{var cubesqlver=arguments[0]; var d=cubesqlver != \"Please select\"; if (!d) return 'Please a cubeSQL version to install.';return true;}"    

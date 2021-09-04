@@ -1,8 +1,9 @@
 #!/bin/bash
-
 currentDir="$(dirname "$0")"
 preVerPath="$(${currentDir}/../scripts/getsharelocation cubeSQL)"
+JSON_URL="https://cubesql.rie.ke/cubesql_urls.json"
 ARCH=$(uname -m)
+DOWNLOAD_LINKS=$(curl -s "$JSON_URL" | jq -c --arg v "$ARCH" '.[$v]')
 
 if [ "${ARCH}" == "x86_64" ]; then
   CPU="64bit";
@@ -15,6 +16,12 @@ else
 fi
 /bin/cat > /tmp/wizard.php <<EOF
 <?php
+
+\$DL_LINKS = json_decode('$DOWNLOAD_LINKS', true);
+\$KEEP_ENTRY = array("Keep current version", "KEEP");
+array_unshift(\$DL_LINKS, \$KEEP_ENTRY);
+
+
 \$STEP1 = array(
     "step_title" => "Where should cubeSQL store its data?",
     "items" => [array(
@@ -72,32 +79,17 @@ fi
         "desc" => "You can either keep your installed version or change to a different cubeSQL version.",
         "invalid_next_disabled_v2" => true,
         "subitems" => [array(
-            "key" => "WIZARD_DL_URL",
-            "desc" => "Version",
-            "displayField" => "displayText",
-            "defaultValue" => "Please select",
-            "valueField" => "url",
-            "autoSelect" => FALSE,
-            "mode" => "local",
+          "key" => "WIZARD_DL_URL",
+          "desc" => "Version",
+          "displayField" => "displayText",
+          "defaultValue" => "Please select",
+          "valueField" => "url",
+          "autoSelect" => FALSE,
+          "mode" => "local",
             "store" => array(
                 "xtype" => "arraystore",
                 "fields" => ["displayText", "url"],
-                "data" => [
-                    ["Keep current Version", "KEEP"], 
-                    ["Latest", "https://sqlabs.com/download/cubesql/latest/cubesql_linux$CPU.tar.gz"], 
-                    ["5.8.0", "https://sqlabs.com/download/cubesql/580/cubesql_linux$CPU.tar.gz"], 
-                    ["5.7.2", "https://sqlabs.com/download/cubesql/572/cubesql_linux$CPU.tar.gz"], 
-                    ["5.7.0", "https://sqlabs.com/download/cubesql/570/cubesql_linux$CPU.tar.gz"], 
-                    ["5.6.1", "https://sqlabs.com/download/cubesql/561/cubesql_linux$CPU.tgz"], 
-                    ["5.5.0", "https://sqlabs.com/download/cubesql/550/cubesql_linux$CPU.tgz"], 
-                    ["5.0.4", "https://sqlabs.com/download/cubesql/504/cubesql_linux$CPU.tgz"], 
-                    ["5.0.1", "https://sqlabs.com/download/cubesql/501/cubesql_linux.tgz"], 
-                    ["4.5.0", "https://sqlabs.com/download/cubesql/450/cubesql_linux_$CPU.tgz"], 
-                    ["4.3.0", "https://sqlabs.com/download/cubesql/430/cubesql_linux_$CPU.tgz"], 
-                    ["4.2.0", "https://sqlabs.com/download/cubesql/420/cubesql_linux_$CPU.tgz"], 
-                    ["4.1.0", "https://sqlabs.com/download/cubesql/410/cubesql_linux_$CPU.tgz"], 
-                    ["4.0.0", "https://sqlabs.com/download/cubesql/400/cubesql_linux_$CPU.tgz"]
-                ]
+                "data" => \$DL_LINKS
             ),
             "validator" => array(
                 "fn" => "{var cubesqlver=arguments[0]; var d=cubesqlver != \"Please select\"; if (!d) return 'Please a cubeSQL version to install.';return true;}"    
@@ -158,7 +150,8 @@ if ( !file_exists("/var/packages/cubeSQL/etc/cubeSQL.ini") && is_dir("$preVerPat
     array_push(\$WIZARD, \$STEP3);
 }
 
-echo json_encode(\$WIZARD);
+# In the json_encode() function all "/" in the url are transformed to "\/". the str_replace changes it back.
+echo str_replace("\/", "/",json_encode(\$WIZARD));
 ?>
 EOF
 
@@ -166,6 +159,5 @@ WIZARD_STEPS=$(/usr/bin/php -n /tmp/wizard.php)
 if [ ${#WIZARD_STEPS} -gt 5 ]; then
     echo $WIZARD_STEPS > $SYNOPKG_TEMP_LOGFILE
 fi
-rm /tmp/wizard.php
-
+rm -f /tmp/wizard.php
 exit 0
