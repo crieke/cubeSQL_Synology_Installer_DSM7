@@ -1,7 +1,7 @@
 #!/bin/bash
 currentDir="$(dirname "$0")"
 preVerPath="$(${currentDir}/../scripts/getsharelocation cubeSQL)"
-JSON_URL="https://cubesql.rie.ke/cubesql_urls.json"
+JSON_URL="https://sqlabs.com/download/cubesql/synology.json"
 ARCH=$(uname -m)
 DOWNLOAD_LINKS=$(curl -s "$JSON_URL" | jq -c --arg v "$ARCH" '.[$v]')
 
