@@ -16,13 +16,13 @@ for i in ${SHARE_ID[@]}
    if [[ $(dirname $SHARE_PATH) = *"volumeUSB"* ]]; then
      DEVICECONNECTED=`echo "${SHARE_CONF}" | grep "guid\[$SHARE_NAME\]" | cut -d "=" -f 2`
      if [[ $DEVICECONNECTED != $i ]]; then
-	    addShare=false
+       addShare=false
      fi
    fi
 
    if $addShare; then
       ((counter++))
-	  SHARE_VAL="$SHARE_PATH"
+     SHARE_VAL="$SHARE_PATH"
    else
       SHARE_ID=( "${SHARE_ID[@]/$i}" )
    fi
@@ -33,21 +33,21 @@ if [[ $counter -eq 0 ]]; then
    for i in ${SHARE_ID[@]}
    do
       addShare=true
-	  SHARE_PATH=($(echo "${SHARE_CONF}" | grep "path\[$i\]\=" | cut -d "[" -f2 | cut -d "=" -f2))
+     SHARE_PATH=($(echo "${SHARE_CONF}" | grep "path\[$i\]\=" | cut -d "[" -f2 | cut -d "=" -f2))
    SHARE_NAME=`echo "${SHARE_CONF}" | grep "display name\[$i\]" | cut -d "=" -f 2`
       if [[ $(dirname $SHARE_PATH) = *"volumeSATA"* ]]; then
          DEVICECONNECTED=`echo "${SHARE_CONF}" | grep "guid\[$SHARE_NAME\]" | cut -d "=" -f 2`
          if [[ $DEVICECONNECTED != $i ]]; then
-		       addShare=false
-		 fi
-	  fi
+             addShare=false
+       fi
+     fi
 
    if $addShare; then
        ((counter++))
-	   SHARE_VAL="$SHARE_PATH"
-	else
-	   SHARE_ID=( "${SHARE_ID[@]/$i}" )
-	fi
+      SHARE_VAL="$SHARE_PATH"
+   else
+      SHARE_ID=( "${SHARE_ID[@]/$i}" )
+   fi
    done
 
 fi

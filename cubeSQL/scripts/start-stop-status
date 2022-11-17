@@ -6,8 +6,8 @@ PKG_ROOT="/var/packages/${PACKAGE}"
 PKG_ETC="${PKG_ROOT}/etc"
 PKG_TARGET="${PKG_ROOT}/target"
 CUBESQL_STORAGE="$(get_section_key_value $PKG_ETC/cubeSQL.ini General cubesql_storage)"
-DATAROOT=`${PKG_ROOT}/scripts/getsharelocation ${CUBESQL_STORAGE}`	
-DATAROOT_DIR="${DATAROOT}/cubeSQL"	
+DATAROOT=`${PKG_ROOT}/scripts/getsharelocation ${CUBESQL_STORAGE}`
+DATAROOT_DIR="${DATAROOT}/cubeSQL"
 LOG_FILE="${DATAROOT_DIR}/cubesql.log"
 PIDFILE="${DATAROOT_DIR}/data/cubesql.pid" # PID is written by cubesql application
 ARCH=`( uname -m )`
@@ -67,7 +67,7 @@ info ()
    ## Echoing System Info
     echolog "DATAROOT_DIR" "${DATAROOT_DIR}"
     echolog "PACKAGE_DIR" "${PKG_TARGET}"
-  echolog "Model" "${SYNO_MODEL}"
+    echolog "Model" "${SYNO_MODEL}"
     echolog "Architecture" "${ARCH}"
     echolog "DSM Version" "${SYNO_VERSION} ${SYNO_SMALL_FIX}"
     echolog "PKG Version" "${SYNO_SPK_VER}"
@@ -84,8 +84,8 @@ findExecutable ()
     "${PKG_TARGET}/cubeSQL/cubesql/Linux/$CPU/cubesql" \
     "${PKG_TARGET}/cubeSQL/core/Linux/$CPU/cubesql" \
     "${PKG_TARGET}/cubeSQL/Server/Linux/$CPU/cubesql" \
-  )
-  
+   )
+
   for execPath in ${!execPaths[*]}
   do
     [ -f "${execPaths[$execPath]}" ] && [ -x "${execPaths[$execPath]}" ] && cubeExec="${execPaths[$execPath]}" && break
@@ -99,7 +99,7 @@ start_daemon ()
 
       if [ ! -d "${DATAROOT_DIR}"/settings ]; then
         mkdir "${DATAROOT_DIR}"/settings
-        echolog "Settings folder has been created." 
+        echolog "Settings folder has been created."
       else
         echolog "Settings folder exists."
       fi
@@ -113,28 +113,28 @@ stop_daemon ()
 {
    if [ -r "$PIDFILE" ]; then
    PID=$(cat "$PIDFILE")
-      
+
    kill -TERM "$PID" >> /dev/null 2>&1
    wait_for_status 1 || kill -KILL "$PID" >> /dev/null 2>&1
-      
+
    [ -f "$PIDFILE" ] && rm -f "$PIDFILE" >> /dev/null 2>&1
    fi
-      
+
    return 0
-      
+
    Pids="$(ps -ef | grep cubesql | awk '{print $2}')"
-      
+
    Count=10
    Sig=-9
-      
+
    while [ "$Pids" != "" ] && [ $Count -gt 0 ]
       do
          kill $Sig $Pids
          sleep 5
-      
+
          Pids="$(ps -ef | grep cubesql | awk '{print $2}')"
          Count=$(($Count -1))
-      
+
          if [ $Count -eq 1 ]; then
             Sig=-11
          fi
